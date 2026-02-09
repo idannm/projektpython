@@ -29,7 +29,7 @@ def ec2():
 @click.option('--type', type=click.Choice(['t3.micro','t2.small']), required=True)
 def create(name, type):
     try:
-        # בדיקת מכסה (Hard Cap)
+        # בדיקת מכסה (Hard Cap) של 2 אינסטנסים רצים
         instances = ec2_client.describe_instances(
             Filters=[
                 {'Name': 'tag:CreatedBy', 'Values': ['platform-cli']},
@@ -42,14 +42,15 @@ def create(name, type):
             click.echo('Error: Hard cap of 2 running instances reached.')
             return
 
-        # מציאת AMI
+        # מציאת AMI של אובונטו
         amis = ec2_client.describe_images(
             Filters=[{'Name':'name','Values':['ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*']}], 
             Owners=['099720109477']
         )
+        # מיון לפי תאריך יצירה ושימוש באחרון
         latest_image = sorted(amis['Images'], key=lambda x: x['CreationDate'], reverse=True)[0]['ImageId']
 
-        ec2_client.run_instances(
+        instance = ec2_client.run_instances(
             ImageId=latest_image, 
             InstanceType=type, 
             MinCount=1, 
@@ -110,27 +111,33 @@ def s3():
 @click.option('--yes', is_flag=True, help="Skip confirmation prompt")
 def create(name, public, yes):
     try:
-        # סניטציה לשם
+        # --- תיקון וולידציה לשם של באקט ---
+        # הופך לאותיות קטנות, מחליף קו תחתון במקף, מסיר רווחים
         original_name = name
         name = name.lower().replace('_', '-').strip()
+        
         if original_name != name:
-            click.echo(f"Warning: Bucket name sanitized to '{name}'.")
+            click.echo(f"Warning: Bucket name sanitized from '{original_name}' to '{name}' to meet AWS rules.")
 
+        # בדיקה שהשם מכיל רק תווים חוקיים
         if not re.match(r'^[a-z0-9.-]+$', name):
-            click.echo("Error: Invalid bucket name.")
+            click.echo("Error: Bucket name contains invalid characters even after sanitation. Use only lowercase letters, numbers, and hyphens.")
             return
+        # ----------------------------------
 
-        # אישור אם ציבורי
+        # לוגיקה לאישור באקט ציבורי
         if public and not yes:
             confirm = click.prompt('Are you sure you want a public bucket? (yes/no)')
             if confirm.lower() != 'yes':
                 click.echo('Bucket creation cancelled.')
                 return
 
-        # יצירה לפי Region
+        # --- התיקון לאזורים (Regions) ---
         session = boto3.session.Session()
         current_region = session.region_name
-        if current_region is None: current_region = 'us-east-1'
+        
+        if current_region is None:
+            current_region = 'us-east-1'
 
         if current_region == 'us-east-1':
             s3_client.create_bucket(Bucket=name)
@@ -140,7 +147,7 @@ def create(name, public, yes):
                 CreateBucketConfiguration={'LocationConstraint': current_region}
             )
 
-        # תיוג
+        # הוספת תגיות
         s3_client.put_bucket_tagging(
             Bucket=name,
             Tagging={
@@ -152,6 +159,7 @@ def create(name, public, yes):
             }
         )
         
+        # אם ציבורי - מסירים את ה-Block Public Access
         if public:
             s3_client.delete_public_access_block(Bucket=name)
             
@@ -163,9 +171,8 @@ def create(name, public, yes):
 @s3.command()
 def list():
     try:
-        # תיקון ל-List: טיפול בשגיאות פרטניות לכל באקט
-        response = s3_client.list_buckets()
-        all_buckets = response.get('Buckets', [])
+        # S3 לא תומך בסינון צד-שרת לפי טאג ב-ListBuckets, אז מסננים בקוד
+        all_buckets = s3_client.list_buckets().get('Buckets', [])
         found_any = False
         
         click.echo(f"{'Bucket Name':<30} {'Creation Date'}")
@@ -175,11 +182,11 @@ def list():
             try:
                 tags = s3_client.get_bucket_tagging(Bucket=b['Name'])
                 tag_set = tags.get('TagSet', [])
+                # בודק אם הבאקט נוצר ע"י ה-CLI
                 if any(t['Key'] == 'CreatedBy' and t['Value'] == 'platform-cli' for t in tag_set):
                     click.echo(f"{b['Name']:<30} {b['CreationDate']}")
                     found_any = True
-            except botocore.exceptions.ClientError as e:
-                # אם אין תגיות (NoSuchTagSet) או אין גישה - פשוט מדלגים
+            except botocore.exceptions.ClientError:
                 continue
         
         if not found_any:
@@ -193,33 +200,16 @@ def list():
 @click.option('--file', required=True)
 def upload(bucket, file):
     try:
-        # 1. בדיקה שהקובץ קיים מקומית
-        if not os.path.exists(file):
-            click.echo(f"Error: File '{file}' not found on local disk.")
-            return
+        # בדיקה האם הבאקט שייך ל-CLI לפני העלאה
+        tags = s3_client.get_bucket_tagging(Bucket=bucket)
+        tag_set = tags.get('TagSet', [])
+        if not any(t['Key'] == 'CreatedBy' and t['Value'] == 'platform-cli' for t in tag_set):
+             click.echo("Error: You can only upload to CLI-created buckets.")
+             return
 
-        # 2. בדיקה שהבאקט שייך ל-CLI (עם טיפול בשגיאת NoSuchTagSet)
-        try:
-            tags = s3_client.get_bucket_tagging(Bucket=bucket)
-            tag_set = tags.get('TagSet', [])
-            if not any(t['Key'] == 'CreatedBy' and t['Value'] == 'platform-cli' for t in tag_set):
-                 click.echo("Error: You can only upload to CLI-created buckets.")
-                 return
-        except botocore.exceptions.ClientError as e:
-            if e.response['Error']['Code'] == 'NoSuchTagSet':
-                click.echo("Error: Bucket has no tags (not CLI-created).")
-                return
-            elif e.response['Error']['Code'] == 'NoSuchBucket':
-                click.echo("Error: Bucket does not exist.")
-                return
-            else:
-                raise e # שגיאה אחרת
-
-        # 3. ביצוע ההעלאה
         file_name = os.path.basename(file)
         s3_client.upload_file(file, bucket, file_name)
         click.echo(f'Success: File {file_name} uploaded to {bucket}.')
-        
     except Exception as e:
         click.echo(f"Error: {str(e)}")
 
