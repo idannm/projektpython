@@ -11,16 +11,20 @@
     ```bash
     pip install -r requirements.txt
     ```
-3.  **להפעלת הממשק הגרפי:**
+3.  **להפעלת הממשק הגרפי (מומלץ):**
     ```bash
     streamlit run app2.py
     ```
 
 ## דוגמאות שימוש (CLI)
 ניתן להשתמש בכלי גם דרך הטרמינל:
+
 ```bash
 # EC2: יצירת שרת (מוגבל ל-t3.micro/t2.small)
 python3 main.py ec2 create --name web-server --type t3.micro
+
+# EC2: הצגת רשימת השרתים שלי
+python3 main.py ec2 list
 
 # S3: יצירת באקט והעלאת קובץ
 python3 main.py s3 create --name my-project-files
