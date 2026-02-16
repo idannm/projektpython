@@ -20,11 +20,11 @@
 ניתן להשתמש בכלי גם דרך הטרמינל:
 ```bash
 # EC2: יצירת שרת (מוגבל ל-t3.micro/t2.small)
-python main.py ec2 create --name web-server --type t3.micro
+python3 main.py ec2 create --name web-server --type t3.micro
 
 # S3: יצירת באקט והעלאת קובץ
-python main.py s3 create --name my-project-files
-python main.py s3 upload --bucket my-project-files --file ./data.txt
+python3 main.py s3 create --name my-project-files
+python3 main.py s3 upload --bucket my-project-files --file ./data.txt
 
 # Route53: יצירת אזור DNS
-python main.py r53 create --name myapp.local
+python3 main.py r53 create --name myapp.local
