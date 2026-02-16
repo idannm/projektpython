@@ -1,34 +1,32 @@
 # פרויקט מסכם - Platform Engineering
 **מגיש:** עידן
 
-## אודות הפרויקט
-כלי לניהול משאבי AWS המאפשר למפתחים להקים תשתיות (EC2, S3, Route53) באופן עצמאי.
-המערכת כוללת ממשק גרפי (UI) וכלי שורת פקודה (CLI), ואוכפת נהלי אבטחה, מגבלות משאבים (עד 2 שרתים) ותיוג אוטומטי לכל משאב (`CreatedBy=platform-cli`).
+## 📌 אודות הפרויקט
+כלי לניהול משאבי AWS (EC2, S3, Route53) המאפשר למפתחים להקים תשתיות באופן עצמאי (Self-Service).
+המערכת כוללת ממשק גרפי (UI) וכלי שורת פקודה (CLI), ואוכפת נהלי אבטחה, מגבלות משאבים (Hard Cap של 2 שרתים) ותיוג אוטומטי לכל משאב (`CreatedBy=platform-cli`).
 
-## התקנה והרצה
-1.  ודאו שמותקן **Python 3.8+** ו-**AWS CLI** מוגדר (`aws configure`).
-2.  פתחו טרמינל בתיקיית הפרויקט והתקינו את הספריות:
+## ⚙️ דרישות קדם (Prerequisites)
+1.  **Python 3.8** ומעלה.
+2.  **AWS CLI** מותקן ומוגדר (`aws configure` עם פרטי הגישה).
+
+## 📦 התקנה והרצה
+1.  פתחו טרמינל בתיקיית הפרויקט והתקינו את הספריות:
     ```bash
     pip install -r requirements.txt
     ```
-3.  **להפעלת הממשק הגרפי (מומלץ):**
+
+2.  **להפעלת הממשק הגרפי (מומלץ):**
     ```bash
     streamlit run app2.py
     ```
 
-## דוגמאות שימוש (CLI)
-ניתן להשתמש בכלי גם דרך הטרמינל:
+## 🚀 דוגמאות שימוש (CLI)
+ניתן להשתמש בכלי גם דרך הטרמינל. יש להקפיד להשתמש ב-`python3`.
 
+### 1. ניהול שרתים (EC2)
 ```bash
-# EC2: יצירת שרת (מוגבל ל-t3.micro/t2.small)
+# יצירת שרת (מוגבל ל-t3.micro/t2.small)
 python3 main.py ec2 create --name web-server --type t3.micro
 
-# EC2: הצגת רשימת השרתים שלי
+# הצגת רשימת השרתים שלי (מסונן לפי תגיות)
 python3 main.py ec2 list
-
-# S3: יצירת באקט והעלאת קובץ
-python3 main.py s3 create --name my-project-files
-python3 main.py s3 upload --bucket my-project-files --file ./data.txt
-
-# Route53: יצירת אזור DNS
-python3 main.py r53 create --name myapp.local
