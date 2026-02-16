@@ -30,3 +30,34 @@ python3 main.py ec2 create --name web-server --type t3.micro
 
 # הצגת רשימת השרתים שלי (מסונן לפי תגיות)
 python3 main.py ec2 list
+2. ניהול אחסון (S3)
+Bash
+# יצירת באקט (כולל בדיקת תקינות שם)
+python3 main.py s3 create --name my-project-files
+
+# העלאת קובץ לבאקט
+python3 main.py s3 upload --bucket my-project-files --file ./data.txt
+3. ניהול דומיינים (Route53)
+Bash
+# יצירת אזור DNS חדש
+python3 main.py r53 create --name myapp.local
+🧹 ניקוי משאבים (Cleanup)
+בסיום העבודה, חובה למחוק או לעצור את המשאבים כדי למנוע חיובים מיותרים ב-AWS.
+
+מחיקת/עצירת שרתים:
+
+Bash
+# קודם מוצאים את ה-ID של השרת
+python3 main.py ec2 list
+
+# לאחר מכן עוצרים אותו
+python3 main.py ec2 stop --id i-xxxxxxxxx
+מחיקת באקטים:
+(יש לרוקן את הבאקט לפני המחיקה)
+
+Bash
+python3 main.py s3 delete --name my-project-files
+מחיקת אזורי DNS:
+
+Bash
+python3 main.py r53 delete --name myapp.local
